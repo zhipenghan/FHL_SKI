@@ -36,42 +36,61 @@ app.post("/echo", (request, response) => {
 
 app.post('/s2s', (req, res) => {
     // We will be coding here
-    var slide_id = req.body["slide_id"];
-    var target_docs = req.body["target_docs"];
-    var target_slide_to_highlight = [];
+    var body = req.body;
+    if (("slide_id" in body) && ("target_docs" in body))
+    {
+        var slide_id = req.body["slide_id"];
+        var target_docs = req.body["target_docs"];
+        var target_slide_to_highlight = [];
 
-    collection.findOne({ "_id": slide_id }, (error, result) => {
-        if(error)
-        {
-            return response.status(500).send(error);
-        }
-
-        var target_slides = result["target_slides"];
-
-        
-        for(i in target_slides)
-        {
-            var slide = target_slides[i];
-            var slide_id = slide["target_slide"]
-            var [target_doc, target_seq] = slide_id.split("_");
-            console.log(slide_id);
-            
-            if(target_docs.includes(target_doc))
+        collection.findOne({ "_id": slide_id }, (error, result) => {
+            if(error)
             {
-                target_slide_to_highlight.push({
-                    "slide_id": slide_id,
-                    "doc_id": target_doc,
-                    "hight_light_slide_index": target_seq,
-                    "score": slide["model_score"]
-                });
-                break;
+                return res.status(500).send(error);
             }
-        }
-        res.send({
-            "target_slide_to_highlight": target_slide_to_highlight,
-            ...result
+
+            if (result == null || !("target_slides" in result))
+            {
+                var unknown_doc = {
+                    "msg": "unknown slide_id or target_docs"
+                }
+                return res.status(500).send(unknown_doc);
+            }
+
+            var target_slides = result["target_slides"];
+            
+            for(i in target_slides)
+            {
+                var slide = target_slides[i];
+                
+                var slide_id = slide["target_slide"]
+                var [target_doc, target_seq] = slide_id.split("_");
+                console.log(slide_id);
+                
+                if(target_docs.includes(target_doc))
+                {
+                    target_slide_to_highlight.push({
+                        "slide_id": slide_id,
+                        "doc_id": target_doc,
+                        "hight_light_slide_index": target_seq,
+                        "score": slide["model_score"]
+                    });
+                    break;
+                }
+            }
+            res.send({
+                "target_slide_to_highlight": target_slide_to_highlight,
+                ...result
+            });
         });
-    });
+    } else {
+        var invalid_req = {
+            "msg": "request body must contains keys: slide_id, target_docs"
+        }
+        return res.status(500).send(invalid_req);
+
+    }
+    
 });
 
 
